@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arrow Slide Game</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@700&display=swap');
+
+        /* Reset sirf game ke andar kaam karega */
+        #arrow-game-master * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        /* Pura screen center karne ke liye */
+        #arrow-game-master {
+            width: 100%;
+            min-height: 100vh; /* Website me lagane par isko apne hisaab se adjust kar sakte hain */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #0f172a; /* Dark background website se match karne ke liye */
+            padding: 20px;
+        }
+
+        /* Main Game Ka Dabba (Box) */
+        #game-box {
+            background: rgba(20, 30, 50, 0.9);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 10px 30px rgba(0,0,0,0.8);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        /* Board ke Theek Upar Wali Patti (Top UI) */
+        #top-ui {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(255,255,255,0.1);
+            color: white;
+            font-size: 18px;
+        }
+
+        .stats-left {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        #close-btn {
+            background: rgba(255, 50, 50, 0.2);
+            border: 2px solid #ff4444;
+            color: #ff4444;
+            border-radius: 8px;
+            padding: 5px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        #close-btn:active {
+            transform: scale(0.9);
+            background: #ff4444;
+            color: white;
+        }
+
+        /* Game Board */
+        #board {
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            overflow: visible;
+        }
+
+        /* Blocks aur unke 3D effects */
+        .block {
+            position: absolute;
+            border-radius: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: top 0.3s ease-in, left 0.3s ease-in, opacity 0.3s, transform 0.1s;
+            box-shadow: inset -3px -5px 10px rgba(0,0,0,0.4), 
+                        inset 3px 5px 10px rgba(255,255,255,0.5), 
+                        0 6px 10px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+
+        .block:active {
+            transform: scale(0.92) translateY(4px);
+            box-shadow: inset -2px -3px 8px rgba(0,0,0,0.4), 
+                        inset 2px 3px 8px rgba(255,255,255,0.5), 
+                        0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Tede Mede (Zig-Zag) Arrows */
+        .arrow-icon {
+            width: 65%;
+            height: 65%;
+            filter: drop-shadow(2px 3px 2px rgba(0,0,0,0.4));
+        }
+
+        /* Colors */
+        .color-0 { background: #FF6B6B; } 
+        .color-1 { background: #4ECDC4; } 
+        .color-2 { background: #FFE66D; } 
+        .color-3 { background: #88D49E; } 
+        .color-4 { background: #B39DDB; } 
+
+        /* Shake Animations */
+        @keyframes shake-x {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+        @keyframes shake-y {
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-5px); }
+            50% { transform: translateY(5px); }
+            75% { transform: translateY(-5px); }
+        }
+        .shake-horizontal { animation: shake-x 0.25s ease-in-out; }
+        .shake-vertical { animation: shake-y 0.25s ease-in-out; }
+
+        /* Level Clear Popup */
+        #level-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #4ECDC4;
+            font-size: 28px;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s;
+            border-radius: 12px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        #level-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Main Wrapper jo design ko tootne nahi dega -->
+    <div id="arrow-game-master">
+        
+        <!-- Game ka Dabba -->
+        <div id="game-box">
+            
+            <!-- Upar ki Patti (Level, Score aur Close) -->
+            <div id="top-ui">
+                <div class="stats-left">
+                    <div id="level-txt">Level: 1</div>
+                    <div id="score-txt">Score: 0</div>
+                </div>
+                <div id="close-btn" onclick="closeGame()">❌ Close</div>
+            </div>
+
+            <!-- Block Board Area -->
+            <div id="board">
+                <div id="level-overlay">Level Cleared!</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const boardEl = document.getElementById('board');
+        const levelTxt = document.getElementById('level-txt');
+        const scoreTxt = document.getElementById('score-txt');
+        const overlay = document.getElementById('level-overlay');
+
+        const tileSize = 60; // Block size
+        const tileGap = 8;   // Blocks ke beech ki gap
+
+        let currentLevel = 1;
+        let score = 0;
+        let grid = []; 
+        let blocksRemaining = 0;
+        let gridSize = 3; 
+        
+        // Directions
+        const directions = {
+            'up':    { dx: 0, dy: -1, rot: 0 },
+            'down':  { dx: 0, dy: 1,  rot: 180 },
+            'left':  { dx: -1, dy: 0, rot: 270 },
+            'right': { dx: 1, dy: 0,  rot: 90 }
+        };
+
+        // Tede Mede Zig-Zag Arrow 
+        const twistedArrowSVG = `
+        <svg class="arrow-icon" viewBox="0 0 100 100" fill="none" stroke="white" stroke-width="14" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M 35,85 L 35,60 L 65,60 L 65,25" />
+            <path d="M 45,40 L 65,20 L 85,40" />
+        </svg>`;
+
+        function closeGame() {
+            if(confirm("Exit the game?")) {
+                document.getElementById('arrow-game-master').innerHTML = "<h2 style='color:white;'>Game Closed.</h2>";
+            }
+        }
+
+        function initLevel() {
+            // Remove old blocks but keep overlay
+            Array.from(boardEl.children).forEach(child => {
+                if(child.id !== 'level-overlay') child.remove();
+            });
+            
+            // Increase size gradually up to 7x7
+            gridSize = Math.min(3 + Math.floor((currentLevel - 1) / 3), 7);
+            let targetBlocks = Math.floor(gridSize * gridSize * (0.7 + Math.random() * 0.2));
+            
+            // Set exact size of the board so wrapper Box adjusts perfectly
+            let boardSizePx = gridSize * tileSize + (gridSize - 1) * tileGap;
+            boardEl.style.width = boardSizePx + 'px';
+            boardEl.style.height = boardSizePx + 'px';
+
+            generatePuzzles(gridSize, targetBlocks);
+            levelTxt.innerText = `Level: ${currentLevel}`;
+        }
+
+        function generatePuzzles(size, targetCount) {
+            grid = Array(size).fill().map(() => Array(size).fill(null));
+            let createdBlocks = [];
+            let attempts = 0;
+            const dirKeys = Object.keys(directions);
+
+            while (createdBlocks.length < targetCount && attempts < 1000) {
+                attempts++;
+                let emptyCells = [];
+                for(let r = 0; r < size; r++) {
+                    for(let c = 0; c < size; c++) {
+                        if(grid[r][c] === null) emptyCells.push({r, c});
+                    }
+                }
+                if(emptyCells.length === 0) break;
+                
+                let cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                let validDirs = [];
+                
+                for(let key of dirKeys) {
+                    let dir = directions[key];
+                    let r = cell.r;
+                    let c = cell.c;
+                    let isClear = true;
+                    
+                    while(true) {
+                        r += dir.dy;
+                        c += dir.dx;
+                        if(r < 0 || r >= size || c < 0 || c >= size) break; 
+                        if(grid[r][c] !== null) { 
+                            isClear = false;
+                            break;
+                        }
+                    }
+                    if(isClear) validDirs.push(key);
+                }
+
+                if(validDirs.length > 0) {
+                    let chosenDir = validDirs[Math.floor(Math.random() * validDirs.length)];
+                    let blockData = {
+                        r: cell.r,
+                        c: cell.c,
+                        dir: chosenDir,
+                        colorClass: `color-${Math.floor(Math.random() * 5)}`
+                    };
+                    grid[cell.r][cell.c] = blockData;
+                    createdBlocks.push(blockData);
+                }
+            }
+
+            blocksRemaining = createdBlocks.length;
+            createdBlocks.forEach(data => createBlockElement(data));
+        }
+
+        function createBlockElement(data) {
+            let el = document.createElement('div');
+            el.className = `block ${data.colorClass}`;
+            el.style.width = tileSize + 'px';
+            el.style.height = tileSize + 'px';
+            
+            let posX = data.c * (tileSize + tileGap);
+            let posY = data.r * (tileSize + tileGap);
+            el.style.left = posX + 'px';
+            el.style.top = posY + 'px';
+            
+            el.innerHTML = twistedArrowSVG;
+            let svgEl = el.querySelector('svg');
+            svgEl.style.transform = `rotate(${directions[data.dir].rot}deg)`;
+
+            el.addEventListener('click', () => handleMove(data, el));
+            boardEl.appendChild(el);
+            data.element = el;
+        }
+
+        function handleMove(data, el) {
+            if(grid[data.r][data.c] !== data) return; 
+
+            let dirInfo = directions[data.dir];
+            let r = data.r + dirInfo.dy;
+            let c = data.c + dirInfo.dx;
+            let canMove = true;
+
+            while(r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
+                if(grid[r][c] !== null) {
+                    canMove = false;
+                    break;
+                }
+                r += dirInfo.dy;
+                c += dirInfo.dx;
+            }
+
+            if(canMove) {
+                grid[data.r][data.c] = null; // Clear logic position
+                el.style.zIndex = "1"; // Push back behind other blocks while moving
+                
+                let moveAmount = (gridSize * (tileSize + tileGap)) + 100;
+                let currentLeft = parseFloat(el.style.left);
+                let currentTop = parseFloat(el.style.top);
+                
+                el.style.left = (currentLeft + (dirInfo.dx * moveAmount)) + 'px';
+                el.style.top = (currentTop + (dirInfo.dy * moveAmount)) + 'px';
+                el.style.opacity = '0';
+                
+                score += 10;
+                scoreTxt.innerText = `Score: ${score}`;
+                blocksRemaining--;
+
+                setTimeout(() => el.remove(), 300);
+
+                if(blocksRemaining === 0) levelComplete();
+            } else {
+                el.classList.remove('shake-horizontal', 'shake-vertical');
+                void el.offsetWidth; 
+                if(data.dir === 'left' || data.dir === 'right') el.classList.add('shake-horizontal');
+                else el.classList.add('shake-vertical');
+            }
+        }
+
+        function levelComplete() {
+            setTimeout(() => {
+                overlay.classList.add('show');
+                setTimeout(() => {
+                    overlay.classList.remove('show');
+                    currentLevel++;
+                    initLevel();
+                }, 1200);
+            }, 300); 
+        }
+
+        // Game Shuru karo
+        initLevel();
+
+    </script>
+</body>
+</html>
